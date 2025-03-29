@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # MongoDB service
+  mongodb:
+    image: mongo:latest
+    container_name: chatterbloom-mongodb
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=chatterbloom
+    networks:
+      - chatterbloom-network
+
+  # Go backend service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: chatterbloom-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - MONGO_URI=mongodb://mongodb:27017
+      - DB_NAME=chatterbloom
+      - JWT_SECRET=your-secret-key-change-in-production
+      - ENVIRONMENT=development
+    depends_on:
+      - mongodb
+    networks:
+      - chatterbloom-network
+
+  # Frontend service
+  frontend:
+    image: node:18-alpine
+    container_name: chatterbloom-frontend
+    working_dir: /app
+    volumes:
+      - .:/app
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080/api
+      - NEXT_PUBLIC_WS_URL=ws://localhost:8080/ws
+    depends_on:
+      - backend
+    networks:
+      - chatterbloom-network
+
+networks:
+  chatterbloom-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
